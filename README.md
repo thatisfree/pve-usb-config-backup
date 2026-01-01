@@ -11,4 +11,4 @@ using a temporary mount and structured folder layout.
 
 ## Run
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thatisfree/pve-usb-config-backup/main/pve-usb-backup.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/thatisfree/pve-usb-config-backup/main/pve-usb-backup.sh)
