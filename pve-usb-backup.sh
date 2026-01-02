@@ -32,10 +32,9 @@ _msg_hu() {
     using_part) echo "➡️ Használt partíció: $1";;
     temp_mount) echo "➡️ Ideiglenes mount: $1";;
     already_mounted) echo "❌ A $1 már mountpoint. Előbb umountold.";;
-
     part_mounted_elsewhere) echo "❌ A partíció már fel van csatolva máshova: $1 -> $2";;
-
     backing_up) echo "📦 Mentés ide: $1";;
+    fs_no_xattr) echo "ℹ️ Fájlrendszer ($1) nem támogatja az xattrs-t, alapértelmezett mentés.";;
     done) echo "✅ Kész. Sync + umount...";;
     safe_remove) echo "✅ Le lehet húzni az USB-t.";;
     *) echo "[$k] $*";;
@@ -59,6 +58,7 @@ _msg_en() {
     already_mounted) echo "❌ $1 is already a mountpoint. Please umount it first.";;
     part_mounted_elsewhere) echo "❌ Partition is already mounted elsewhere: $1 -> $2";;
     backing_up) echo "📦 Backing up to: $1";;
+    fs_no_xattr) echo "ℹ️ Filesystem ($1) doesn't support xattrs, using basic backup.";;
     done) echo "✅ Done. Sync + umount...";;
     safe_remove) echo "✅ Safe to remove USB drive.";;
     *) echo "[$k] $*";;
@@ -176,8 +176,25 @@ do_backup() {
 
   msg backing_up "$target"
 
+  # Detektáljuk a filesystem típust
+  local fs_type=""
+  fs_type="$(findmnt -no FSTYPE "$TMP_MNT" 2>/dev/null || echo "unknown")"
+  
+  local tar_opts="--numeric-owner"
+  
+  # Csak ext4/xfs/btrfs támogatja az xattrs-t és ACL-eket
+  case "$fs_type" in
+    ext4|xfs|btrfs)
+      tar_opts="--xattrs --acls $tar_opts"
+      ;;
+    *)
+      # FAT32/exFAT/NTFS → skip xattrs
+      msg fs_no_xattr "$fs_type"
+      ;;
+  esac
+
   # /etc/pve mentés (PVE-specifikus)
-  tar --xattrs --acls --numeric-owner -czf \
+  tar $tar_opts -czf \
     "$target/etc-pve/pve-etc-$DATE.tar.gz" \
     /etc/pve
 
